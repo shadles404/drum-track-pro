@@ -1,42 +1,48 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Badge } from '@/components/ui/badge';
-import { mockSales } from '@/data/mockData';
-import { Sale } from '@/types';
-import { format } from 'date-fns';
+import { useSales } from '@/hooks/useSupabaseData';
+import { format, isPast } from 'date-fns';
 
 export default function MyCustomers() {
-  // Filter for current salesperson (mock: salesperson 1)
-  const mySales = mockSales.filter((s) => s.salespersonId === '1');
+  const { data: sales, isLoading } = useSales();
 
   const columns = [
-    { key: 'customerName', header: 'Customer' },
-    { key: 'customerPhone', header: 'Phone' },
-    { key: 'productType', header: 'Product' },
+    { key: 'customer_name', header: 'Customer' },
+    { key: 'customer_phone', header: 'Phone' },
+    { 
+      key: 'category', 
+      header: 'Product',
+      render: (item: any) => (item.drum_categories as any)?.name || 'Unknown',
+    },
     { key: 'quantity', header: 'Qty' },
     {
-      key: 'saleDate',
+      key: 'created_at',
       header: 'Sale Date',
-      render: (item: Sale) => format(item.saleDate, 'MMM d, yyyy'),
+      render: (item: any) => format(new Date(item.created_at), 'MMM d, yyyy'),
     },
     {
-      key: 'expectedReturnDate',
+      key: 'due_date',
       header: 'Return Due',
-      render: (item: Sale) => format(item.expectedReturnDate, 'MMM d, yyyy'),
+      render: (item: any) => format(new Date(item.due_date), 'MMM d, yyyy'),
     },
     {
       key: 'status',
       header: 'Status',
-      render: (item: Sale) => <Badge variant={item.status}>{item.status}</Badge>,
+      render: (item: any) => {
+        const isOverdue = item.status === 'active' && isPast(new Date(item.due_date));
+        const displayStatus = isOverdue ? 'overdue' : item.status === 'active' ? 'pending' : 'returned';
+        return <Badge variant={displayStatus}>{displayStatus}</Badge>;
+      },
     },
   ];
 
   return (
     <DashboardLayout title="My Customers" subtitle="View all customers you have sold to">
       <DataTable
-        data={mySales}
+        data={sales || []}
         columns={columns}
-        emptyMessage="No customers yet"
+        emptyMessage={isLoading ? "Loading..." : "No customers yet"}
       />
     </DashboardLayout>
   );

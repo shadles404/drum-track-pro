@@ -1,31 +1,33 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Package, Shield, Briefcase } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Package, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('salesperson');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
-    const success = await login(email, password, selectedRole);
+    const result = await login(email, password);
     
-    if (success) {
-      navigate(selectedRole === 'admin' ? '/admin' : '/sales');
+    if (result.error) {
+      setError(result.error);
+      setIsLoading(false);
+      return;
     }
     
+    // Navigation will be handled by the App component based on role
     setIsLoading(false);
   };
 
@@ -44,50 +46,12 @@ export default function Login() {
         {/* Login Card */}
         <div className="rounded-2xl border bg-card p-8 shadow-lg animate-slide-up opacity-0">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Role Selection */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Select Role</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('admin')}
-                  className={cn(
-                    'flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all',
-                    selectedRole === 'admin'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
-                  )}
-                >
-                  <Shield className={cn(
-                    'h-6 w-6',
-                    selectedRole === 'admin' ? 'text-primary' : 'text-muted-foreground'
-                  )} />
-                  <span className={cn(
-                    'text-sm font-medium',
-                    selectedRole === 'admin' ? 'text-primary' : 'text-muted-foreground'
-                  )}>Admin</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('salesperson')}
-                  className={cn(
-                    'flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all',
-                    selectedRole === 'salesperson'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
-                  )}
-                >
-                  <Briefcase className={cn(
-                    'h-6 w-6',
-                    selectedRole === 'salesperson' ? 'text-primary' : 'text-muted-foreground'
-                  )} />
-                  <span className={cn(
-                    'text-sm font-medium',
-                    selectedRole === 'salesperson' ? 'text-primary' : 'text-muted-foreground'
-                  )}>Salesperson</span>
-                </button>
+            {error && (
+              <div className="rounded-lg bg-danger/10 border border-danger/20 p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-danger mt-0.5" />
+                <p className="text-sm text-danger">{error}</p>
               </div>
-            </div>
+            )}
 
             {/* Email */}
             <div className="space-y-2">
@@ -121,9 +85,8 @@ export default function Login() {
             </Button>
           </form>
 
-          {/* Demo Note */}
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Demo mode: Enter any email/password to sign in
+            Contact your administrator for account access
           </p>
         </div>
       </div>

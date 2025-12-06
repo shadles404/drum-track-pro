@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -10,42 +11,90 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { DrumProductType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Package, User, Phone, Hash } from 'lucide-react';
+import { useDrumCategories, useShops, useCreateSale } from '@/hooks/useSupabaseData';
+import { Package, User, Phone, Hash, MapPin } from 'lucide-react';
 import { addDays, format } from 'date-fns';
-
-const productTypes: DrumProductType[] = ['Love White', 'Mango White', 'King White', 'SOS White'];
 
 export default function NewSale() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [productType, setProductType] = useState<DrumProductType | ''>('');
-  const [quantity, setQuantity] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [selectedShop, setSelectedShop] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<Record<string, number>>({});
   const { toast } = useToast();
+
+  const { data: categories, isLoading: categoriesLoading } = useDrumCategories();
+  const { data: shops, isLoading: shopsLoading } = useShops();
+  const createSale = useCreateSale();
 
   const expectedReturnDate = addDays(new Date(), 30);
 
+  const handleCategoryToggle = (categoryId: string, checked: boolean) => {
+    setSelectedCategories(prev => {
+      if (checked) {
+        return { ...prev, [categoryId]: 1 };
+      } else {
+        const { [categoryId]: _, ...rest } = prev;
+        return rest;
+      }
+    });
+  };
+
+  const handleQuantityChange = (categoryId: string, quantity: number) => {
+    setSelectedCategories(prev => ({
+      ...prev,
+      [categoryId]: Math.max(1, quantity),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const items = Object.entries(selectedCategories).map(([category_id, quantity]) => ({
+      category_id,
+      quantity,
+    }));
 
-    toast({
-      title: 'Sale Recorded Successfully',
-      description: `${quantity} drums of ${productType} sold to ${customerName}. Return due: ${format(expectedReturnDate, 'MMM d, yyyy')}`,
-    });
+    if (items.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Please select at least one product type',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    // Reset form
-    setCustomerName('');
-    setCustomerPhone('');
-    setProductType('');
-    setQuantity('');
-    setIsLoading(false);
+    try {
+      await createSale.mutateAsync({
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_address: customerAddress || undefined,
+        shop_id: selectedShop,
+        items,
+      });
+
+      toast({
+        title: 'Sale Recorded Successfully',
+        description: `${items.length} product type(s) sold to ${customerName}. Return due: ${format(expectedReturnDate, 'MMM d, yyyy')}`,
+      });
+
+      // Reset form
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerAddress('');
+      setSelectedShop('');
+      setSelectedCategories({});
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to record sale',
+        variant: 'destructive',
+      });
+    }
   };
+
+  const totalQuantity = Object.values(selectedCategories).reduce((sum, qty) => sum + qty, 0);
 
   return (
     <DashboardLayout title="New Sale" subtitle="Record a new drum sale">
@@ -82,41 +131,87 @@ export default function NewSale() {
               />
             </div>
 
-            {/* Product Type */}
+            {/* Customer Address */}
             <div className="space-y-2">
-              <Label htmlFor="productType" className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-muted-foreground" />
-                Drum Product Type
+              <Label htmlFor="customerAddress" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                Customer Address (Optional)
               </Label>
-              <Select value={productType} onValueChange={(val) => setProductType(val as DrumProductType)}>
+              <Input
+                id="customerAddress"
+                placeholder="Enter address"
+                value={customerAddress}
+                onChange={(e) => setCustomerAddress(e.target.value)}
+              />
+            </div>
+
+            {/* Shop Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="shop" className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                Shop
+              </Label>
+              <Select value={selectedShop} onValueChange={setSelectedShop} required>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select product type" />
+                  <SelectValue placeholder={shopsLoading ? "Loading..." : "Select shop"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {productTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
+                  {shops?.map((shop) => (
+                    <SelectItem key={shop.id} value={shop.id}>
+                      {shop.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Quantity */}
-            <div className="space-y-2">
-              <Label htmlFor="quantity" className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                Quantity
+            {/* Product Types - Multiple Selection */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                Drum Product Types
               </Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                placeholder="Number of drums"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                required
-              />
+              <div className="space-y-3 rounded-lg border p-4">
+                {categoriesLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading categories...</p>
+                ) : (
+                  categories?.map((category) => {
+                    const isSelected = category.id in selectedCategories;
+                    return (
+                      <div key={category.id} className="flex items-center gap-4">
+                        <Checkbox
+                          id={category.id}
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleCategoryToggle(category.id, !!checked)}
+                        />
+                        <Label htmlFor={category.id} className="flex-1 cursor-pointer">
+                          {category.name}
+                        </Label>
+                        {isSelected && (
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`qty-${category.id}`} className="text-sm text-muted-foreground">
+                              Qty:
+                            </Label>
+                            <Input
+                              id={`qty-${category.id}`}
+                              type="number"
+                              min="1"
+                              className="w-20"
+                              value={selectedCategories[category.id]}
+                              onChange={(e) => handleQuantityChange(category.id, parseInt(e.target.value) || 1)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              {totalQuantity > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Total: {totalQuantity} drums across {Object.keys(selectedCategories).length} product type(s)
+                </p>
+              )}
             </div>
 
             {/* Return Date Info */}
@@ -131,8 +226,13 @@ export default function NewSale() {
             </div>
 
             {/* Submit */}
-            <Button type="submit" className="w-full" variant="drum" disabled={isLoading}>
-              {isLoading ? 'Recording Sale...' : 'Record Sale'}
+            <Button 
+              type="submit" 
+              className="w-full" 
+              variant="drum" 
+              disabled={createSale.isPending || !selectedShop || Object.keys(selectedCategories).length === 0}
+            >
+              {createSale.isPending ? 'Recording Sale...' : 'Record Sale'}
             </Button>
           </form>
         </div>

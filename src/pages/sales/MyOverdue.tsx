@@ -2,33 +2,39 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { mockSales } from '@/data/mockData';
-import { Sale } from '@/types';
-import { format, differenceInDays } from 'date-fns';
+import { useSales } from '@/hooks/useSupabaseData';
+import { format, differenceInDays, isPast } from 'date-fns';
 import { AlertTriangle, Package, Users } from 'lucide-react';
 
 export default function MyOverdue() {
-  // Filter for current salesperson (mock: salesperson 1)
-  const myOverdueSales = mockSales.filter((s) => s.salespersonId === '1' && s.status === 'overdue');
+  const { data: sales, isLoading } = useSales();
+
+  const overdueSales = sales?.filter(s => 
+    s.status === 'active' && isPast(new Date(s.due_date))
+  ) || [];
   
-  const totalOverdueQty = myOverdueSales.reduce((sum, s) => sum + s.quantity, 0);
-  const uniqueCustomers = new Set(myOverdueSales.map((s) => s.customerId)).size;
+  const totalOverdueQty = overdueSales.reduce((sum, s) => sum + s.quantity, 0);
+  const uniqueCustomers = new Set(overdueSales.map((s) => s.customer_phone)).size;
 
   const columns = [
-    { key: 'customerName', header: 'Customer' },
-    { key: 'customerPhone', header: 'Phone' },
-    { key: 'productType', header: 'Product' },
+    { key: 'customer_name', header: 'Customer' },
+    { key: 'customer_phone', header: 'Phone' },
+    { 
+      key: 'category', 
+      header: 'Product',
+      render: (item: any) => (item.drum_categories as any)?.name || 'Unknown',
+    },
     { key: 'quantity', header: 'Qty' },
     {
-      key: 'saleDate',
+      key: 'created_at',
       header: 'Sale Date',
-      render: (item: Sale) => format(item.saleDate, 'MMM d, yyyy'),
+      render: (item: any) => format(new Date(item.created_at), 'MMM d, yyyy'),
     },
     {
       key: 'daysOverdue',
       header: 'Days Overdue',
-      render: (item: Sale) => {
-        const days = differenceInDays(new Date(), item.expectedReturnDate);
+      render: (item: any) => {
+        const days = differenceInDays(new Date(), new Date(item.due_date));
         return <Badge variant="danger">{days} days</Badge>;
       },
     },
@@ -53,7 +59,7 @@ export default function MyOverdue() {
         />
         <StatCard
           title="Overdue Transactions"
-          value={myOverdueSales.length}
+          value={overdueSales.length}
           icon={AlertTriangle}
           variant="danger"
           className="stagger-3"
@@ -61,9 +67,9 @@ export default function MyOverdue() {
       </div>
 
       <DataTable
-        data={myOverdueSales}
+        data={overdueSales}
         columns={columns}
-        emptyMessage="No overdue drums - Great job!"
+        emptyMessage={isLoading ? "Loading..." : "No overdue drums - Great job!"}
       />
     </DashboardLayout>
   );
