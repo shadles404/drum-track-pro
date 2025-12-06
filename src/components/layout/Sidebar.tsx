@@ -38,10 +38,10 @@ const salespersonNavItems: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { user, logout } = useAuth();
+  const { profile, role, logout } = useAuth();
   const location = useLocation();
   
-  const navItems = user?.role === 'admin' ? adminNavItems : salespersonNavItems;
+  const navItems = (role === 'admin' || role === 'store_manager') ? adminNavItems : salespersonNavItems;
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar text-sidebar-foreground">
@@ -83,11 +83,11 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border p-4">
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent">
-              <span className="text-sm font-semibold">{user?.name.charAt(0)}</span>
+              <span className="text-sm font-semibold">{profile?.name?.charAt(0) || 'U'}</span>
             </div>
             <div className="flex-1 truncate">
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-sidebar-foreground/60 capitalize">{user?.role}</p>
+              <p className="text-sm font-medium">{profile?.name || 'User'}</p>
+              <p className="text-xs text-sidebar-foreground/60 capitalize">{role?.replace('_', ' ')}</p>
             </div>
           </div>
           <Button

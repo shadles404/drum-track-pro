@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockSales } from '@/data/mockData';
+import { useSales, useCreateReturnRequest } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
 import { RotateCcw, User, Hash, Calendar, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -18,31 +18,47 @@ import { format } from 'date-fns';
 export default function SubmitReturn() {
   const [selectedSale, setSelectedSale] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Get pending sales (not yet fully returned)
-  const pendingSales = mockSales.filter((s) => s.status !== 'returned');
+  const { data: sales, isLoading: salesLoading } = useSales();
+  const createReturn = useCreateReturnRequest();
+
+  // Get active sales (not yet fully returned)
+  const activeSales = sales?.filter((s) => s.status === 'active') || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const sale = activeSales.find((s) => s.id === selectedSale);
+    if (!sale) return;
 
-    toast({
-      title: 'Return Submitted',
-      description: 'Your return has been submitted for admin approval.',
-    });
+    try {
+      await createReturn.mutateAsync({
+        sale_id: selectedSale,
+        shop_id: sale.shop_id,
+        category_id: sale.category_id,
+        customer_phone: sale.customer_phone,
+        quantity: parseInt(quantity),
+      });
 
-    // Reset form
-    setSelectedSale('');
-    setQuantity('');
-    setIsLoading(false);
+      toast({
+        title: 'Return Submitted',
+        description: 'Your return has been submitted for admin approval.',
+      });
+
+      // Reset form
+      setSelectedSale('');
+      setQuantity('');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit return',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const sale = pendingSales.find((s) => s.id === selectedSale);
+  const sale = activeSales.find((s) => s.id === selectedSale);
 
   return (
     <DashboardLayout title="Submit Return" subtitle="Submit empty drum returns for approval">
@@ -68,12 +84,12 @@ export default function SubmitReturn() {
               </Label>
               <Select value={selectedSale} onValueChange={setSelectedSale}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a pending sale" />
+                  <SelectValue placeholder={salesLoading ? "Loading..." : "Select a pending sale"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {pendingSales.map((sale) => (
+                  {activeSales.map((sale) => (
                     <SelectItem key={sale.id} value={sale.id}>
-                      {sale.customerName} - {sale.productType} ({sale.quantity} drums)
+                      {sale.customer_name} - {(sale.drum_categories as any)?.name} ({sale.quantity} drums)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -85,7 +101,7 @@ export default function SubmitReturn() {
               <div className="rounded-lg bg-secondary p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Product:</span>
-                  <span className="font-medium">{sale.productType}</span>
+                  <span className="font-medium">{(sale.drum_categories as any)?.name}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Original Quantity:</span>
@@ -93,11 +109,11 @@ export default function SubmitReturn() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Sale Date:</span>
-                  <span className="font-medium">{format(sale.saleDate, 'MMM d, yyyy')}</span>
+                  <span className="font-medium">{format(new Date(sale.created_at), 'MMM d, yyyy')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Return Due:</span>
-                  <span className="font-medium">{format(sale.expectedReturnDate, 'MMM d, yyyy')}</span>
+                  <span className="font-medium">{format(new Date(sale.due_date), 'MMM d, yyyy')}</span>
                 </div>
               </div>
             )}
@@ -131,9 +147,9 @@ export default function SubmitReturn() {
             </div>
 
             {/* Submit */}
-            <Button type="submit" className="w-full" disabled={isLoading || !selectedSale}>
+            <Button type="submit" className="w-full" disabled={createReturn.isPending || !selectedSale}>
               <RotateCcw className="h-4 w-4 mr-2" />
-              {isLoading ? 'Submitting...' : 'Submit for Approval'}
+              {createReturn.isPending ? 'Submitting...' : 'Submit for Approval'}
             </Button>
           </form>
         </div>

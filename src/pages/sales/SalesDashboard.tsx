@@ -3,76 +3,75 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
-import { mockSales, mockReturns } from '@/data/mockData';
-import { Sale } from '@/types';
+import { useSales, useDashboardStats } from '@/hooks/useSupabaseData';
 import { Package, RotateCcw, AlertTriangle, TrendingUp } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isPast } from 'date-fns';
 
 export default function SalesDashboard() {
-  const { user } = useAuth();
-  
-  // Filter data for current salesperson
-  const mySales = mockSales.filter((s) => s.salespersonId === '1'); // Mock: use first salesperson
-  const myReturns = mockReturns.filter((r) => r.salespersonId === '1');
-  
-  const totalSold = mySales.reduce((sum, s) => sum + s.quantity, 0);
-  const totalReturned = myReturns.filter((r) => r.status === 'approved').reduce((sum, r) => sum + r.quantity, 0);
-  const totalOverdue = mySales.filter((s) => s.status === 'overdue').length;
-  const pendingReturns = myReturns.filter((r) => r.status === 'pending').length;
+  const { profile } = useAuth();
+  const { data: sales, isLoading: salesLoading } = useSales();
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
 
   const recentSalesColumns = [
-    { key: 'customerName', header: 'Customer' },
-    { key: 'productType', header: 'Product' },
+    { key: 'customer_name', header: 'Customer' },
+    { 
+      key: 'category', 
+      header: 'Product',
+      render: (item: any) => (item.drum_categories as any)?.name || 'Unknown',
+    },
     { key: 'quantity', header: 'Qty' },
     {
-      key: 'saleDate',
+      key: 'created_at',
       header: 'Sale Date',
-      render: (item: Sale) => format(item.saleDate, 'MMM d, yyyy'),
+      render: (item: any) => format(new Date(item.created_at), 'MMM d, yyyy'),
     },
     {
-      key: 'expectedReturnDate',
+      key: 'due_date',
       header: 'Return Due',
-      render: (item: Sale) => format(item.expectedReturnDate, 'MMM d, yyyy'),
+      render: (item: any) => format(new Date(item.due_date), 'MMM d, yyyy'),
     },
     {
       key: 'status',
       header: 'Status',
-      render: (item: Sale) => <Badge variant={item.status}>{item.status}</Badge>,
+      render: (item: any) => {
+        const isOverdue = item.status === 'active' && isPast(new Date(item.due_date));
+        const displayStatus = isOverdue ? 'overdue' : item.status === 'active' ? 'pending' : 'returned';
+        return <Badge variant={displayStatus}>{displayStatus}</Badge>;
+      },
     },
   ];
 
   return (
     <DashboardLayout
-      title={`Welcome, ${user?.name || 'Salesperson'}`}
+      title={`Welcome, ${profile?.name || 'Salesperson'}`}
       subtitle="Your sales performance overview"
     >
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard
           title="Total Drums Sold"
-          value={totalSold}
+          value={statsLoading ? '...' : stats?.totalSalesAllTime || 0}
           icon={Package}
           variant="primary"
-          trend={{ value: 8, label: 'this month' }}
           className="stagger-1"
         />
         <StatCard
           title="Drums Returned"
-          value={totalReturned}
+          value={statsLoading ? '...' : stats?.totalReturned || 0}
           icon={RotateCcw}
           variant="success"
           className="stagger-2"
         />
         <StatCard
           title="Pending Returns"
-          value={pendingReturns}
+          value={statsLoading ? '...' : stats?.totalPendingApproval || 0}
           icon={TrendingUp}
           variant="warning"
           className="stagger-3"
         />
         <StatCard
           title="Overdue"
-          value={totalOverdue}
+          value={statsLoading ? '...' : stats?.totalOverdue || 0}
           icon={AlertTriangle}
           variant="danger"
           className="stagger-4"
@@ -83,9 +82,9 @@ export default function SalesDashboard() {
       <div>
         <h2 className="text-lg font-semibold mb-4">Recent Sales</h2>
         <DataTable
-          data={mySales.slice(0, 5)}
+          data={sales?.slice(0, 5) || []}
           columns={recentSalesColumns}
-          emptyMessage="No sales yet"
+          emptyMessage={salesLoading ? "Loading..." : "No sales yet"}
         />
       </div>
     </DashboardLayout>

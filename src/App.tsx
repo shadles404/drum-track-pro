@@ -22,37 +22,63 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children, allowedRole }: { children: React.ReactNode; allowedRole?: 'admin' | 'salesperson' }) {
-  const { isAuthenticated, user } = useAuth();
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-pulse text-muted-foreground">Loading...</div>
+    </div>
+  );
+}
+
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: ('admin' | 'store_manager' | 'salesperson')[] }) {
+  const { isAuthenticated, role, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRole && user?.role !== allowedRole) {
-    return <Navigate to={user?.role === 'admin' ? '/admin' : '/sales'} replace />;
+  if (allowedRoles && role && !allowedRoles.includes(role)) {
+    // Redirect to appropriate dashboard based on role
+    if (role === 'admin' || role === 'store_manager') {
+      return <Navigate to="/admin" replace />;
+    }
+    return <Navigate to="/sales" replace />;
   }
 
   return <>{children}</>;
 }
 
 function AppRoutes() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, role, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  const getDefaultRedirect = () => {
+    if (!isAuthenticated || !role) return '/login';
+    if (role === 'admin' || role === 'store_manager') return '/admin';
+    return '/sales';
+  };
 
   return (
     <Routes>
       {/* Public Routes */}
       <Route
         path="/login"
-        element={isAuthenticated ? <Navigate to={user?.role === 'admin' ? '/admin' : '/sales'} replace /> : <Login />}
+        element={isAuthenticated ? <Navigate to={getDefaultRedirect()} replace /> : <Login />}
       />
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
 
       {/* Admin Routes */}
       <Route
         path="/admin"
         element={
-          <ProtectedRoute allowedRole="admin">
+          <ProtectedRoute allowedRoles={['admin', 'store_manager']}>
             <AdminDashboard />
           </ProtectedRoute>
         }
@@ -60,7 +86,7 @@ function AppRoutes() {
       <Route
         path="/admin/salespeople"
         element={
-          <ProtectedRoute allowedRole="admin">
+          <ProtectedRoute allowedRoles={['admin', 'store_manager']}>
             <Salespeople />
           </ProtectedRoute>
         }
@@ -68,7 +94,7 @@ function AppRoutes() {
       <Route
         path="/admin/customers"
         element={
-          <ProtectedRoute allowedRole="admin">
+          <ProtectedRoute allowedRoles={['admin', 'store_manager']}>
             <Customers />
           </ProtectedRoute>
         }
@@ -76,7 +102,7 @@ function AppRoutes() {
       <Route
         path="/admin/sales"
         element={
-          <ProtectedRoute allowedRole="admin">
+          <ProtectedRoute allowedRoles={['admin', 'store_manager']}>
             <AllSales />
           </ProtectedRoute>
         }
@@ -84,7 +110,7 @@ function AppRoutes() {
       <Route
         path="/admin/returns"
         element={
-          <ProtectedRoute allowedRole="admin">
+          <ProtectedRoute allowedRoles={['admin', 'store_manager']}>
             <ReturnsApproval />
           </ProtectedRoute>
         }
@@ -92,7 +118,7 @@ function AppRoutes() {
       <Route
         path="/admin/overdue"
         element={
-          <ProtectedRoute allowedRole="admin">
+          <ProtectedRoute allowedRoles={['admin', 'store_manager']}>
             <OverdueDrums />
           </ProtectedRoute>
         }
@@ -102,7 +128,7 @@ function AppRoutes() {
       <Route
         path="/sales"
         element={
-          <ProtectedRoute allowedRole="salesperson">
+          <ProtectedRoute allowedRoles={['salesperson']}>
             <SalesDashboard />
           </ProtectedRoute>
         }
@@ -110,7 +136,7 @@ function AppRoutes() {
       <Route
         path="/sales/new"
         element={
-          <ProtectedRoute allowedRole="salesperson">
+          <ProtectedRoute allowedRoles={['salesperson']}>
             <NewSale />
           </ProtectedRoute>
         }
@@ -118,7 +144,7 @@ function AppRoutes() {
       <Route
         path="/sales/return"
         element={
-          <ProtectedRoute allowedRole="salesperson">
+          <ProtectedRoute allowedRoles={['salesperson']}>
             <SubmitReturn />
           </ProtectedRoute>
         }
@@ -126,7 +152,7 @@ function AppRoutes() {
       <Route
         path="/sales/customers"
         element={
-          <ProtectedRoute allowedRole="salesperson">
+          <ProtectedRoute allowedRoles={['salesperson']}>
             <MyCustomers />
           </ProtectedRoute>
         }
@@ -134,7 +160,7 @@ function AppRoutes() {
       <Route
         path="/sales/overdue"
         element={
-          <ProtectedRoute allowedRole="salesperson">
+          <ProtectedRoute allowedRoles={['salesperson']}>
             <MyOverdue />
           </ProtectedRoute>
         }
