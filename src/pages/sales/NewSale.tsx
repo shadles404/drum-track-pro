@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,10 +11,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useDrumCategories, useShops, useCreateSale } from '@/hooks/useSupabaseData';
-import { Package, User, Phone, Hash, MapPin } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { SaleReceipt } from '@/components/receipt/SaleReceipt';
+import { Package, User, Phone, MapPin, Printer } from 'lucide-react';
 import { addDays, format } from 'date-fns';
+import { useReactToPrint } from 'react-to-print';
 
 export default function NewSale() {
   const [customerName, setCustomerName] = useState('');
@@ -22,13 +31,22 @@ export default function NewSale() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [selectedShop, setSelectedShop] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Record<string, number>>({});
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { profile } = useAuth();
 
   const { data: categories, isLoading: categoriesLoading } = useDrumCategories();
   const { data: shops, isLoading: shopsLoading } = useShops();
   const createSale = useCreateSale();
 
   const expectedReturnDate = addDays(new Date(), 30);
+
+  const handlePrint = useReactToPrint({
+    contentRef: receiptRef,
+    documentTitle: `Receipt-${customerName}-${format(new Date(), 'yyyy-MM-dd')}`,
+  });
 
   const handleCategoryToggle = (categoryId: string, checked: boolean) => {
     setSelectedCategories(prev => {
@@ -74,17 +92,32 @@ export default function NewSale() {
         items,
       });
 
+      // Prepare receipt data
+      const saleItems = items.map(item => {
+        const category = categories?.find(c => c.id === item.category_id);
+        return {
+          productName: category?.name || 'Unknown',
+          quantity: item.quantity,
+        };
+      });
+
+      setReceiptData({
+        customerName,
+        customerPhone,
+        customerAddress: customerAddress || undefined,
+        salespersonName: profile?.name || 'Unknown',
+        saleDate: new Date(),
+        returnDate: expectedReturnDate,
+        items: saleItems,
+      });
+
+      setShowReceipt(true);
+
       toast({
         title: 'Sale Recorded Successfully',
         description: `${items.length} product type(s) sold to ${customerName}. Return due: ${format(expectedReturnDate, 'MMM d, yyyy')}`,
       });
 
-      // Reset form
-      setCustomerName('');
-      setCustomerPhone('');
-      setCustomerAddress('');
-      setSelectedShop('');
-      setSelectedCategories({});
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -92,6 +125,17 @@ export default function NewSale() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleCloseReceipt = () => {
+    setShowReceipt(false);
+    setReceiptData(null);
+    // Reset form
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerAddress('');
+    setSelectedShop('');
+    setSelectedCategories({});
   };
 
   const totalQuantity = Object.values(selectedCategories).reduce((sum, qty) => sum + qty, 0);
@@ -237,6 +281,33 @@ export default function NewSale() {
           </form>
         </div>
       </div>
+
+      {/* Receipt Dialog */}
+      <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Sale Receipt</DialogTitle>
+          </DialogHeader>
+          
+          {receiptData && (
+            <>
+              <div className="border rounded-lg overflow-hidden">
+                <SaleReceipt ref={receiptRef} sale={receiptData} />
+              </div>
+              
+              <div className="flex gap-3 mt-4">
+                <Button onClick={handlePrint} className="flex-1" variant="drum">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Receipt
+                </Button>
+                <Button onClick={handleCloseReceipt} variant="outline" className="flex-1">
+                  Close & New Sale
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

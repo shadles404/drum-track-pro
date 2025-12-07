@@ -271,12 +271,13 @@ export function useDashboardStats() {
     queryKey: ['dashboard-stats', user?.id, role],
     queryFn: async () => {
       const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
       // Get sales
       let salesQuery = supabase
         .from('sales')
-        .select('quantity, status, due_date, created_at, category_id, drum_categories(name)');
+        .select('quantity, status, due_date, created_at, category_id, drum_categories(name), customer_phone');
 
       if (role === 'salesperson') {
         salesQuery = salesQuery.eq('salesperson_id', user!.id);
@@ -294,6 +295,10 @@ export function useDashboardStats() {
       }
 
       const { data: returns } = await returnsQuery;
+
+      const totalSalesToday = sales
+        ?.filter(s => new Date(s.created_at) >= startOfToday)
+        .reduce((sum, s) => sum + s.quantity, 0) || 0;
 
       const totalSalesThisMonth = sales
         ?.filter(s => new Date(s.created_at) >= startOfMonth)
@@ -313,6 +318,9 @@ export function useDashboardStats() {
         s.status === 'active' && new Date(s.due_date) < now
       ).length || 0;
 
+      // Unique customers count
+      const uniqueCustomers = new Set(sales?.map(s => s.customer_phone) || []).size;
+
       // Sales by product
       const salesByProduct: Record<string, number> = {};
       sales?.forEach(s => {
@@ -321,14 +329,69 @@ export function useDashboardStats() {
       });
 
       return {
+        totalSalesToday,
         totalSalesThisMonth,
         totalSalesAllTime,
         totalReturned,
         totalPendingApproval,
         totalOverdue,
+        totalCustomers: uniqueCustomers,
         salesByProduct,
       };
     },
     enabled: !!user,
+  });
+}
+
+// Get single salesperson profile with full details
+export function useSalespersonProfile(salespersonId: string) {
+  return useQuery({
+    queryKey: ['salesperson-profile', salespersonId],
+    queryFn: async () => {
+      // Get profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', salespersonId)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      // Get all sales
+      const { data: sales, error: salesError } = await supabase
+        .from('sales')
+        .select('*, drum_categories(name), shops(name)')
+        .eq('salesperson_id', salespersonId)
+        .order('created_at', { ascending: false });
+
+      if (salesError) throw salesError;
+
+      // Get all return requests
+      const { data: returns, error: returnsError } = await supabase
+        .from('return_requests')
+        .select('*, drum_categories(name), sales(customer_name, customer_phone)')
+        .eq('salesperson_id', salespersonId)
+        .order('created_at', { ascending: false });
+
+      if (returnsError) throw returnsError;
+
+      const now = new Date();
+      const totalSales = sales?.reduce((sum, s) => sum + s.quantity, 0) || 0;
+      const totalReturned = returns?.filter(r => r.status === 'approved').reduce((sum, r) => sum + r.quantity, 0) || 0;
+      const overdueSales = sales?.filter(s => s.status === 'active' && new Date(s.due_date) < now) || [];
+
+      return {
+        profile,
+        sales: sales || [],
+        returns: returns || [],
+        overdueSales,
+        stats: {
+          totalSales,
+          totalReturned,
+          totalOverdue: overdueSales.length,
+        },
+      };
+    },
+    enabled: !!salespersonId,
   });
 }
