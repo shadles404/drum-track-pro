@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Salespeople from "./pages/admin/Salespeople";
+import SalespersonProfile from "./pages/admin/SalespersonProfile";
 import Customers from "./pages/admin/Customers";
 import AllSales from "./pages/admin/AllSales";
 import ReturnsApproval from "./pages/admin/ReturnsApproval";
@@ -88,6 +89,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['admin', 'store_manager']}>
             <Salespeople />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/salespeople/:id"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'store_manager']}>
+            <SalespersonProfile />
           </ProtectedRoute>
         }
       />
