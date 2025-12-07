@@ -21,16 +21,21 @@ import { useToast } from '@/hooks/use-toast';
 import { useDrumCategories, useShops, useCreateSale } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/context/AuthContext';
 import { SaleReceipt } from '@/components/receipt/SaleReceipt';
-import { Package, User, Phone, MapPin, Printer } from 'lucide-react';
+import { Package, User, Phone, MapPin, Printer, DollarSign } from 'lucide-react';
 import { addDays, format } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
+
+interface SelectedItem {
+  quantity: number;
+  unit_price: number;
+}
 
 export default function NewSale() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [selectedShop, setSelectedShop] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<Record<string, number>>({});
+  const [selectedCategories, setSelectedCategories] = useState<Record<string, SelectedItem>>({});
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -51,7 +56,7 @@ export default function NewSale() {
   const handleCategoryToggle = (categoryId: string, checked: boolean) => {
     setSelectedCategories(prev => {
       if (checked) {
-        return { ...prev, [categoryId]: 1 };
+        return { ...prev, [categoryId]: { quantity: 1, unit_price: 0 } };
       } else {
         const { [categoryId]: _, ...rest } = prev;
         return rest;
@@ -62,16 +67,24 @@ export default function NewSale() {
   const handleQuantityChange = (categoryId: string, quantity: number) => {
     setSelectedCategories(prev => ({
       ...prev,
-      [categoryId]: Math.max(1, quantity),
+      [categoryId]: { ...prev[categoryId], quantity: Math.max(1, quantity) },
+    }));
+  };
+
+  const handlePriceChange = (categoryId: string, price: number) => {
+    setSelectedCategories(prev => ({
+      ...prev,
+      [categoryId]: { ...prev[categoryId], unit_price: Math.max(0, price) },
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const items = Object.entries(selectedCategories).map(([category_id, quantity]) => ({
+    const items = Object.entries(selectedCategories).map(([category_id, data]) => ({
       category_id,
-      quantity,
+      quantity: data.quantity,
+      unit_price: data.unit_price,
     }));
 
     if (items.length === 0) {
@@ -98,6 +111,8 @@ export default function NewSale() {
         return {
           productName: category?.name || 'Unknown',
           quantity: item.quantity,
+          unitPrice: item.unit_price,
+          totalAmount: item.quantity * item.unit_price,
         };
       });
 
@@ -109,6 +124,7 @@ export default function NewSale() {
         saleDate: new Date(),
         returnDate: expectedReturnDate,
         items: saleItems,
+        grandTotal: saleItems.reduce((sum, item) => sum + item.totalAmount, 0),
       });
 
       setShowReceipt(true);
@@ -138,7 +154,8 @@ export default function NewSale() {
     setSelectedCategories({});
   };
 
-  const totalQuantity = Object.values(selectedCategories).reduce((sum, qty) => sum + qty, 0);
+  const totalQuantity = Object.values(selectedCategories).reduce((sum, item) => sum + item.quantity, 0);
+  const grandTotal = Object.values(selectedCategories).reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
 
   return (
     <DashboardLayout title="New Sale" subtitle="Record a new drum sale">
@@ -209,41 +226,65 @@ export default function NewSale() {
               </Select>
             </div>
 
-            {/* Product Types - Multiple Selection */}
+            {/* Product Types - Multiple Selection with Pricing */}
             <div className="space-y-3">
               <Label className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-muted-foreground" />
                 Drum Product Types
               </Label>
-              <div className="space-y-3 rounded-lg border p-4">
+              <div className="space-y-4 rounded-lg border p-4">
                 {categoriesLoading ? (
                   <p className="text-sm text-muted-foreground">Loading categories...</p>
                 ) : (
                   categories?.map((category) => {
                     const isSelected = category.id in selectedCategories;
+                    const item = selectedCategories[category.id];
                     return (
-                      <div key={category.id} className="flex items-center gap-4">
-                        <Checkbox
-                          id={category.id}
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleCategoryToggle(category.id, !!checked)}
-                        />
-                        <Label htmlFor={category.id} className="flex-1 cursor-pointer">
-                          {category.name}
-                        </Label>
+                      <div key={category.id} className="space-y-2">
+                        <div className="flex items-center gap-4">
+                          <Checkbox
+                            id={category.id}
+                            checked={isSelected}
+                            onCheckedChange={(checked) => handleCategoryToggle(category.id, !!checked)}
+                          />
+                          <Label htmlFor={category.id} className="flex-1 cursor-pointer font-medium">
+                            {category.name}
+                          </Label>
+                        </div>
                         {isSelected && (
-                          <div className="flex items-center gap-2">
-                            <Label htmlFor={`qty-${category.id}`} className="text-sm text-muted-foreground">
-                              Qty:
-                            </Label>
-                            <Input
-                              id={`qty-${category.id}`}
-                              type="number"
-                              min="1"
-                              className="w-20"
-                              value={selectedCategories[category.id]}
-                              onChange={(e) => handleQuantityChange(category.id, parseInt(e.target.value) || 1)}
-                            />
+                          <div className="ml-8 grid grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <Label htmlFor={`qty-${category.id}`} className="text-xs text-muted-foreground">
+                                Quantity
+                              </Label>
+                              <Input
+                                id={`qty-${category.id}`}
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => handleQuantityChange(category.id, parseInt(e.target.value) || 1)}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor={`price-${category.id}`} className="text-xs text-muted-foreground">
+                                Unit Price (KES)
+                              </Label>
+                              <Input
+                                id={`price-${category.id}`}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={item.unit_price || ''}
+                                onChange={(e) => handlePriceChange(category.id, parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Total</Label>
+                              <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-medium">
+                                KES {(item.quantity * item.unit_price).toLocaleString()}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -252,9 +293,15 @@ export default function NewSale() {
                 )}
               </div>
               {totalQuantity > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Total: {totalQuantity} drums across {Object.keys(selectedCategories).length} product type(s)
-                </p>
+                <div className="flex items-center justify-between rounded-lg bg-primary/10 border border-primary/20 p-3">
+                  <span className="text-sm text-muted-foreground">
+                    {totalQuantity} drums across {Object.keys(selectedCategories).length} product type(s)
+                  </span>
+                  <span className="font-semibold text-primary flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    Total: KES {grandTotal.toLocaleString()}
+                  </span>
+                </div>
               )}
             </div>
 

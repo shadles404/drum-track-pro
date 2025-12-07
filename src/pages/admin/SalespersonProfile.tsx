@@ -5,7 +5,7 @@ import { DataTable } from '@/components/dashboard/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useSalespersonProfile } from '@/hooks/useSupabaseData';
-import { ArrowLeft, Package, RotateCcw, AlertTriangle, User, Mail } from 'lucide-react';
+import { ArrowLeft, Package, RotateCcw, AlertTriangle, User, Mail, DollarSign } from 'lucide-react';
 import { format, differenceInDays, isPast } from 'date-fns';
 
 export default function SalespersonProfile() {
@@ -31,11 +31,15 @@ export default function SalespersonProfile() {
 
   const { profile, sales, returns, overdueSales, stats } = data;
 
+  const formatCurrency = (amount: number) => `KES ${amount?.toLocaleString() || 0}`;
+
   const salesColumns = [
     { key: 'customer_name', header: 'Customer' },
     { key: 'customer_phone', header: 'Phone' },
     { key: 'product', header: 'Product', render: (item: any) => (item.drum_categories as any)?.name },
     { key: 'quantity', header: 'Qty' },
+    { key: 'unit_price', header: 'Unit Price', render: (item: any) => formatCurrency(Number(item.unit_price || 0)) },
+    { key: 'total_amount', header: 'Total', render: (item: any) => formatCurrency(Number(item.total_amount || 0)) },
     { key: 'created_at', header: 'Sale Date', render: (item: any) => format(new Date(item.created_at), 'MMM d, yyyy') },
     { key: 'due_date', header: 'Return Due', render: (item: any) => format(new Date(item.due_date), 'MMM d, yyyy') },
     { 
@@ -108,8 +112,9 @@ export default function SalespersonProfile() {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <StatCard title="Total Drums Sold" value={stats.totalSales} icon={Package} variant="primary" />
+          <StatCard title="Total Revenue" value={formatCurrency(stats.totalRevenue || 0)} icon={DollarSign} variant="success" />
           <StatCard title="Total Returned" value={stats.totalReturned} icon={RotateCcw} variant="default" />
           <StatCard title="Total Overdue" value={stats.totalOverdue} icon={AlertTriangle} variant="danger" />
         </div>

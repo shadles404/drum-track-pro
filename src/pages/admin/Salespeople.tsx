@@ -10,11 +10,18 @@ export default function Salespeople() {
   const navigate = useNavigate();
   const { data: salespeople, isLoading } = useSalespeopleWithStats();
 
+  const formatCurrency = (amount: number) => `KES ${amount?.toLocaleString() || 0}`;
+
   const columns = [
     { key: 'name', header: 'Name' },
     { key: 'email', header: 'Email' },
     { key: 'totalSales', header: 'Total Sales' },
     { key: 'totalReturned', header: 'Returned' },
+    { 
+      key: 'totalRevenue', 
+      header: 'Revenue', 
+      render: (item: any) => formatCurrency(item.totalRevenue || 0)
+    },
     { 
       key: 'totalOverdue', 
       header: 'Overdue', 

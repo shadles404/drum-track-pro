@@ -4,13 +4,15 @@ import { DataTable } from '@/components/dashboard/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 import { useSales, useDashboardStats } from '@/hooks/useSupabaseData';
-import { Package, RotateCcw, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Package, RotateCcw, AlertTriangle, TrendingUp, DollarSign } from 'lucide-react';
 import { format, isPast } from 'date-fns';
 
 export default function SalesDashboard() {
   const { profile } = useAuth();
   const { data: sales, isLoading: salesLoading } = useSales();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
+
+  const formatCurrency = (amount: number) => `KES ${amount.toLocaleString()}`;
 
   const recentSalesColumns = [
     { key: 'customer_name', header: 'Customer' },
@@ -20,6 +22,11 @@ export default function SalesDashboard() {
       render: (item: any) => (item.drum_categories as any)?.name || 'Unknown',
     },
     { key: 'quantity', header: 'Qty' },
+    {
+      key: 'total_amount',
+      header: 'Amount',
+      render: (item: any) => `KES ${Number(item.total_amount || 0).toLocaleString()}`,
+    },
     {
       key: 'created_at',
       header: 'Sale Date',
@@ -47,7 +54,7 @@ export default function SalesDashboard() {
       subtitle="Your sales performance overview"
     >
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
         <StatCard
           title="Total Drums Sold"
           value={statsLoading ? '...' : stats?.totalSalesAllTime || 0}
@@ -56,25 +63,32 @@ export default function SalesDashboard() {
           className="stagger-1"
         />
         <StatCard
+          title="Total Revenue"
+          value={statsLoading ? '...' : formatCurrency(stats?.totalRevenue || 0)}
+          icon={DollarSign}
+          variant="success"
+          className="stagger-2"
+        />
+        <StatCard
           title="Drums Returned"
           value={statsLoading ? '...' : stats?.totalReturned || 0}
           icon={RotateCcw}
-          variant="success"
-          className="stagger-2"
+          variant="default"
+          className="stagger-3"
         />
         <StatCard
           title="Pending Returns"
           value={statsLoading ? '...' : stats?.totalPendingApproval || 0}
           icon={TrendingUp}
           variant="warning"
-          className="stagger-3"
+          className="stagger-4"
         />
         <StatCard
           title="Overdue"
           value={statsLoading ? '...' : stats?.totalOverdue || 0}
           icon={AlertTriangle}
           variant="danger"
-          className="stagger-4"
+          className="stagger-5"
         />
       </div>
 
