@@ -4,7 +4,7 @@ import { DataTable } from '@/components/dashboard/DataTable';
 import { ProductBreakdown } from '@/components/dashboard/ProductBreakdown';
 import { Badge } from '@/components/ui/badge';
 import { useDashboardStats, useSalespeopleWithStats, useReturnRequests, useSales } from '@/hooks/useSupabaseData';
-import { Package, AlertTriangle, Clock, TrendingUp, Users, CheckCircle, Calendar } from 'lucide-react';
+import { Package, AlertTriangle, Clock, TrendingUp, Users, CheckCircle, Calendar, DollarSign } from 'lucide-react';
 import { format, differenceInDays, isPast } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -33,10 +33,12 @@ export default function AdminDashboard() {
     { key: 'customer_phone', header: 'Phone' },
   ];
 
+  const formatCurrency = (amount: number) => `KES ${amount.toLocaleString()}`;
+
   return (
     <DashboardLayout title="Admin Dashboard" subtitle="Overview of all drum sales and returns">
-      {/* Primary Stats Row */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-8">
+      {/* Primary Stats Row - Sales */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-4">
         <StatCard 
           title="Sales Today" 
           value={statsLoading ? '...' : stats?.totalSalesToday || 0} 
@@ -81,14 +83,31 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* Customer Count */}
-      <div className="mb-8">
+      {/* Revenue & Customers Row */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <StatCard 
+          title="Total Revenue" 
+          value={statsLoading ? '...' : formatCurrency(stats?.totalRevenue || 0)} 
+          icon={DollarSign} 
+          variant="success" 
+        />
+        <StatCard 
+          title="Revenue Today" 
+          value={statsLoading ? '...' : formatCurrency(stats?.revenueToday || 0)} 
+          icon={DollarSign} 
+          variant="default" 
+        />
+        <StatCard 
+          title="Revenue This Month" 
+          value={statsLoading ? '...' : formatCurrency(stats?.revenueThisMonth || 0)} 
+          icon={DollarSign} 
+          variant="default" 
+        />
         <StatCard 
           title="Total Customers" 
           value={statsLoading ? '...' : stats?.totalCustomers || 0} 
           icon={Users} 
           variant="default" 
-          className="max-w-xs" 
         />
       </div>
 
@@ -116,9 +135,12 @@ export default function AdminDashboard() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{index + 1}</div>
-                    <span className="font-medium">{person.name}</span>
+                    <div>
+                      <span className="font-medium block">{person.name}</span>
+                      <span className="text-xs text-muted-foreground">KES {person.totalRevenue?.toLocaleString() || 0}</span>
+                    </div>
                   </div>
-                  <span className="text-muted-foreground">{person.totalSales} sales</span>
+                  <span className="text-muted-foreground">{person.totalSales} drums</span>
                 </div>
               ))}
             </div>

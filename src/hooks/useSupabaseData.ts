@@ -115,7 +115,7 @@ export function useSalespeopleWithStats() {
         (profiles || []).map(async (profile) => {
           const { data: sales } = await supabase
             .from('sales')
-            .select('quantity, status, due_date')
+            .select('quantity, status, due_date, total_amount')
             .eq('salesperson_id', profile.user_id);
 
           const { data: returns } = await supabase
@@ -126,6 +126,7 @@ export function useSalespeopleWithStats() {
 
           const totalSales = sales?.reduce((sum, s) => sum + s.quantity, 0) || 0;
           const totalReturned = returns?.reduce((sum, r) => sum + r.quantity, 0) || 0;
+          const totalRevenue = sales?.reduce((sum, s) => sum + Number(s.total_amount || 0), 0) || 0;
           const now = new Date();
           const totalOverdue = sales?.filter(s => 
             s.status === 'active' && new Date(s.due_date) < now
@@ -138,6 +139,7 @@ export function useSalespeopleWithStats() {
             totalSales,
             totalReturned,
             totalOverdue,
+            totalRevenue,
           };
         })
       );
@@ -173,11 +175,12 @@ export function useCreateSale() {
       customer_phone: string;
       customer_address?: string;
       shop_id: string;
-      items: { category_id: string; quantity: number }[];
+      items: { category_id: string; quantity: number; unit_price: number }[];
     }) => {
       const results = [];
       
       for (const item of saleData.items) {
+        const total_amount = item.quantity * item.unit_price;
         const { data, error } = await supabase
           .from('sales')
           .insert({
@@ -188,6 +191,8 @@ export function useCreateSale() {
             salesperson_id: user!.id,
             category_id: item.category_id,
             quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_amount,
           })
           .select()
           .single();
@@ -277,7 +282,7 @@ export function useDashboardStats() {
       // Get sales
       let salesQuery = supabase
         .from('sales')
-        .select('quantity, status, due_date, created_at, category_id, drum_categories(name), customer_phone');
+        .select('quantity, status, due_date, created_at, category_id, drum_categories(name), customer_phone, total_amount');
 
       if (role === 'salesperson') {
         salesQuery = salesQuery.eq('salesperson_id', user!.id);
@@ -328,6 +333,15 @@ export function useDashboardStats() {
         salesByProduct[categoryName] = (salesByProduct[categoryName] || 0) + s.quantity;
       });
 
+      // Total revenue
+      const totalRevenue = sales?.reduce((sum, s) => sum + Number(s.total_amount || 0), 0) || 0;
+      const revenueToday = sales
+        ?.filter(s => new Date(s.created_at) >= startOfToday)
+        .reduce((sum, s) => sum + Number(s.total_amount || 0), 0) || 0;
+      const revenueThisMonth = sales
+        ?.filter(s => new Date(s.created_at) >= startOfMonth)
+        .reduce((sum, s) => sum + Number(s.total_amount || 0), 0) || 0;
+
       return {
         totalSalesToday,
         totalSalesThisMonth,
@@ -337,6 +351,9 @@ export function useDashboardStats() {
         totalOverdue,
         totalCustomers: uniqueCustomers,
         salesByProduct,
+        totalRevenue,
+        revenueToday,
+        revenueThisMonth,
       };
     },
     enabled: !!user,
@@ -379,6 +396,7 @@ export function useSalespersonProfile(salespersonId: string) {
       const totalSales = sales?.reduce((sum, s) => sum + s.quantity, 0) || 0;
       const totalReturned = returns?.filter(r => r.status === 'approved').reduce((sum, r) => sum + r.quantity, 0) || 0;
       const overdueSales = sales?.filter(s => s.status === 'active' && new Date(s.due_date) < now) || [];
+      const totalRevenue = sales?.reduce((sum, s) => sum + Number(s.total_amount || 0), 0) || 0;
 
       return {
         profile,
@@ -389,6 +407,7 @@ export function useSalespersonProfile(salespersonId: string) {
           totalSales,
           totalReturned,
           totalOverdue: overdueSales.length,
+          totalRevenue,
         },
       };
     },

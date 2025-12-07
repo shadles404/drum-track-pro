@@ -9,7 +9,8 @@ interface SaleReceiptProps {
     salespersonName: string;
     saleDate: Date;
     returnDate: Date;
-    items: { productName: string; quantity: number }[];
+    items: { productName: string; quantity: number; unitPrice: number; totalAmount: number }[];
+    grandTotal: number;
   };
 }
 
@@ -43,28 +44,38 @@ export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(({ sale 
           </div>
         </div>
 
-        {/* Items Sold */}
+        {/* Items Sold with Pricing */}
         <div className="border-b border-gray-300 pb-3">
           <h2 className="font-bold text-base mb-2">Items Sold</h2>
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-1">Drum Type</th>
-                <th className="text-right py-1">Qty</th>
+                <th className="text-center py-1">Qty</th>
+                <th className="text-right py-1">Price</th>
+                <th className="text-right py-1">Total</th>
               </tr>
             </thead>
             <tbody>
               {sale.items.map((item, index) => (
                 <tr key={index}>
                   <td className="py-1">{item.productName}</td>
-                  <td className="text-right py-1">{item.quantity}</td>
+                  <td className="text-center py-1">{item.quantity}</td>
+                  <td className="text-right py-1">KES {item.unitPrice.toLocaleString()}</td>
+                  <td className="text-right py-1">KES {item.totalAmount.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-gray-300 font-bold">
-                <td className="py-2">Total</td>
-                <td className="text-right py-2">{totalQuantity} drums</td>
+              <tr className="border-t border-gray-300">
+                <td className="py-2 font-medium">Subtotal</td>
+                <td className="text-center py-2 font-medium">{totalQuantity}</td>
+                <td className="text-right py-2"></td>
+                <td className="text-right py-2 font-medium">KES {sale.grandTotal.toLocaleString()}</td>
+              </tr>
+              <tr className="border-t-2 border-black font-bold text-lg">
+                <td colSpan={2} className="py-2">GRAND TOTAL</td>
+                <td colSpan={2} className="text-right py-2">KES {sale.grandTotal.toLocaleString()}</td>
               </tr>
             </tfoot>
           </table>

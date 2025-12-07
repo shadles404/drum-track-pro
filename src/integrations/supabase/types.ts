@@ -196,6 +196,8 @@ export type Database = {
           salesperson_id: string
           shop_id: string
           status: string
+          total_amount: number
+          unit_price: number
         }
         Insert: {
           category_id: string
@@ -209,6 +211,8 @@ export type Database = {
           salesperson_id: string
           shop_id: string
           status?: string
+          total_amount?: number
+          unit_price?: number
         }
         Update: {
           category_id?: string
@@ -222,6 +226,8 @@ export type Database = {
           salesperson_id?: string
           shop_id?: string
           status?: string
+          total_amount?: number
+          unit_price?: number
         }
         Relationships: [
           {
