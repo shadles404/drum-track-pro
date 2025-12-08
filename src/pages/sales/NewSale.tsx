@@ -267,7 +267,7 @@ export default function NewSale() {
                             </div>
                             <div className="space-y-1">
                               <Label htmlFor={`price-${category.id}`} className="text-xs text-muted-foreground">
-                                Unit Price (KES)
+                                Unit Price ($)
                               </Label>
                               <Input
                                 id={`price-${category.id}`}
@@ -282,7 +282,7 @@ export default function NewSale() {
                             <div className="space-y-1">
                               <Label className="text-xs text-muted-foreground">Total</Label>
                               <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm font-medium">
-                                KES {(item.quantity * item.unit_price).toLocaleString()}
+                                ${(item.quantity * item.unit_price).toLocaleString()}
                               </div>
                             </div>
                           </div>
@@ -299,7 +299,7 @@ export default function NewSale() {
                   </span>
                   <span className="font-semibold text-primary flex items-center gap-1">
                     <DollarSign className="h-4 w-4" />
-                    Total: KES {grandTotal.toLocaleString()}
+                    Total: ${grandTotal.toLocaleString()}
                   </span>
                 </div>
               )}
