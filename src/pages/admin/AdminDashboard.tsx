@@ -33,7 +33,7 @@ export default function AdminDashboard() {
     { key: 'customer_phone', header: 'Phone' },
   ];
 
-  const formatCurrency = (amount: number) => `KES ${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number) => `$${amount.toLocaleString()}`;
 
   return (
     <DashboardLayout title="Admin Dashboard" subtitle="Overview of all drum sales and returns">
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{index + 1}</div>
                     <div>
                       <span className="font-medium block">{person.name}</span>
-                      <span className="text-xs text-muted-foreground">KES {person.totalRevenue?.toLocaleString() || 0}</span>
+                      <span className="text-xs text-muted-foreground">${person.totalRevenue?.toLocaleString() || 0}</span>
                     </div>
                   </div>
                   <span className="text-muted-foreground">{person.totalSales} drums</span>

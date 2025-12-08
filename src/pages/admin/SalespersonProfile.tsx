@@ -31,7 +31,7 @@ export default function SalespersonProfile() {
 
   const { profile, sales, returns, overdueSales, stats } = data;
 
-  const formatCurrency = (amount: number) => `KES ${amount?.toLocaleString() || 0}`;
+  const formatCurrency = (amount: number) => `$${amount?.toLocaleString() || 0}`;
 
   const salesColumns = [
     { key: 'customer_name', header: 'Customer' },

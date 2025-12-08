@@ -12,7 +12,7 @@ export default function SalesDashboard() {
   const { data: sales, isLoading: salesLoading } = useSales();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
 
-  const formatCurrency = (amount: number) => `KES ${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number) => `$${amount.toLocaleString()}`;
 
   const recentSalesColumns = [
     { key: 'customer_name', header: 'Customer' },
@@ -25,7 +25,7 @@ export default function SalesDashboard() {
     {
       key: 'total_amount',
       header: 'Amount',
-      render: (item: any) => `KES ${Number(item.total_amount || 0).toLocaleString()}`,
+      render: (item: any) => `$${Number(item.total_amount || 0).toLocaleString()}`,
     },
     {
       key: 'created_at',

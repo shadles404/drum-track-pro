@@ -10,7 +10,7 @@ export default function Salespeople() {
   const navigate = useNavigate();
   const { data: salespeople, isLoading } = useSalespeopleWithStats();
 
-  const formatCurrency = (amount: number) => `KES ${amount?.toLocaleString() || 0}`;
+  const formatCurrency = (amount: number) => `$${amount?.toLocaleString() || 0}`;
 
   const columns = [
     { key: 'name', header: 'Name' },

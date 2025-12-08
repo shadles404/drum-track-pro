@@ -61,8 +61,8 @@ export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(({ sale 
                 <tr key={index}>
                   <td className="py-1">{item.productName}</td>
                   <td className="text-center py-1">{item.quantity}</td>
-                  <td className="text-right py-1">KES {item.unitPrice.toLocaleString()}</td>
-                  <td className="text-right py-1">KES {item.totalAmount.toLocaleString()}</td>
+                  <td className="text-right py-1">${item.unitPrice.toLocaleString()}</td>
+                  <td className="text-right py-1">${item.totalAmount.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -71,11 +71,11 @@ export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(({ sale 
                 <td className="py-2 font-medium">Subtotal</td>
                 <td className="text-center py-2 font-medium">{totalQuantity}</td>
                 <td className="text-right py-2"></td>
-                <td className="text-right py-2 font-medium">KES {sale.grandTotal.toLocaleString()}</td>
+                <td className="text-right py-2 font-medium">${sale.grandTotal.toLocaleString()}</td>
               </tr>
               <tr className="border-t-2 border-black font-bold text-lg">
                 <td colSpan={2} className="py-2">GRAND TOTAL</td>
-                <td colSpan={2} className="text-right py-2">KES {sale.grandTotal.toLocaleString()}</td>
+                <td colSpan={2} className="text-right py-2">${sale.grandTotal.toLocaleString()}</td>
               </tr>
             </tfoot>
           </table>
