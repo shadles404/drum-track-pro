@@ -1,14 +1,38 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useSalespeopleWithStats } from '@/hooks/useSupabaseData';
+import { supabase } from '@/integrations/supabase/client';
 import { Eye } from 'lucide-react';
 
 export default function Salespeople() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: salespeople, isLoading } = useSalespeopleWithStats();
+
+  // Real-time subscription for sales, return_requests, and profiles
+  useEffect(() => {
+    const channel = supabase
+      .channel('salespeople-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['salespeople-stats'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'return_requests' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['salespeople-stats'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['salespeople-stats'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const formatCurrency = (amount: number) => `$${amount?.toLocaleString() || 0}`;
 
